@@ -1,0 +1,14 @@
+#!/usr/bin/with-contenv bash
+
+cd /config || exit
+
+if test -f "bin/shared_memory"; then
+  ./bin/shared_memory
+fi
+
+if test -f "./shared_memory"; then
+  ./shared_memory
+fi
+
+exec \
+	s6-setuidgid abc perl server_launcher.pl loginserver zones="30" silent_launcher

@@ -1,0 +1,66 @@
+#!/usr/bin/with-contenv bash
+
+declare -A EQEMU_CONF
+EQEMU_CONF[MYSQL_ROOT_PASSWORD]=${MYSQL_ROOT_PASSWORD:-root}
+EQEMU_CONF[DB_HOST]=${DB_HOST:-mariadb}
+EQEMU_CONF[DB_PORT]=${DB_PORT:-3306}
+EQEMU_CONF[DB_USERNAME]=${DB_USERNAME:-root}
+EQEMU_CONF[DB_PASSWORD]=${DB_PASSWORD:-root}
+EQEMU_CONF[DB_DATABASE]=${DB_DATABASE:-eqemu}
+EQEMU_CONF[DB_TIMEOUT]=${DB_TIMEOUT:-30}
+
+# set up symlinks so management script works properly
+cd /config
+
+# symlinks to make things work properly with the management script
+ln -sf /app/eqemu /config/config_source
+mkdir -p /home/eqemu
+ln -s /app/eqemu /home/eqemu/config_source
+
+# prevent mgmt script from checking net since ping isn't installed
+touch /config/skip_internet_connection_check.txt
+
+dbcmd="mysql -h ${EQEMU_CONF[DB_HOST]} -P ${EQEMU_CONF[DB_PORT]} -u "${EQEMU_CONF[DB_USERNAME]}" "-p${EQEMU_CONF[DB_PASSWORD]}""
+echo $dbcmd
+echo "Waiting ${EQEMU_CONF[DB_TIMEOUT]}s for database to be ready..."
+counter=1
+while ! ${dbcmd} -e "show databases;" > /dev/null 2>&1; do
+    sleep 1
+    counter=$((counter + 1))
+    if [ ${counter} -gt ${EQEMU_CONF[DB_TIMEOUT]} ]; then
+        >&2 echo "ERROR: Failed to connect to database on ${EQEMU_CONF[DB_HOST]}"
+        exit 1
+    fi;
+done
+echo "Database ready!"
+
+if [ ! -f "/config/eqemu_config.json" ]; then
+	cd /config
+	wget https://raw.githubusercontent.com/EQEmu/Server/master/utils/scripts/eqemu_server.pl
+	mv /defaults/eqemu_config.json /config/eqemu_config.json
+
+	# sed in values or skip if value not set
+	for KEY in "${!EQEMU_CONF[@]}"; do \
+	if [[ ${EQEMU_CONF[$KEY]} == "" ]]; then \
+	:
+	else sed -i 's|{{'$KEY'}}|'${EQEMU_CONF[$KEY]}'|g' /config/eqemu_config.json
+	fi
+	done
+
+	${dbcmd} -e "CREATE DATABASE IF NOT EXISTS ${EQEMU_CONF[DB_DATABASE]}";
+
+	perl eqemu_server.pl maps
+	perl eqemu_server.pl opcodes
+	perl eqemu_server.pl plugins
+	perl eqemu_server.pl quests
+	perl eqemu_server.pl lua_modules
+	perl eqemu_server.pl utility_scripts
+	perl eqemu_server.pl source_peq_db
+	yes exit | perl eqemu_server.pl linux_login_server_setup
+fi
+
+
+# permissions
+chown -R abc:abc \
+	/app/eqemu \
+	/config
