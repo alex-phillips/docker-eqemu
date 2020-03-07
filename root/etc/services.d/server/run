@@ -11,4 +11,4 @@ if test -f "./shared_memory"; then
 fi
 
 exec \
-	s6-setuidgid abc perl server_launcher.pl loginserver zones="30" silent_launcher
+	s6-setuidgid abc perl server_launcher.pl loginserver zones="30"
