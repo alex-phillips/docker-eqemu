@@ -1,0 +1,8 @@
+#!/usr/bin/with-contenv bash
+
+find /config -maxdepth 1 ! -name config -exec ln -sf '{}' /app/ \;
+
+# permissions
+chown -R abc:abc \
+	/config \
+	/app/web-admin

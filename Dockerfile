@@ -53,6 +53,40 @@ RUN \
  cmake -DEQEMU_BUILD_LOGIN=ON -DEQEMU_BUILD_LUA=ON -G 'Unix Makefiles' .. && \
  make -j $(nproc) && \
  cd /app/eqemu && \
+ echo "**** install eqemu-web-admin ****" && \
+ echo "**** installing nodejs ****" && \
+ curl -sL https://deb.nodesource.com/setup_13.x | bash - && \
+ apt install -y nodejs && \
+ echo "**** install server ****" && \
+ mkdir -p /app/web-admin && \
+ if [ -z ${SERVER_RELEASE+x} ]; then \
+	SERVER_RELEASE=$(curl -sX GET "https://api.github.com/repos/Akkadius/eqemu-web-admin/commits/master" \
+	| awk '/sha/{print $4;exit}' FS='[""]'); \
+ fi && \
+ curl -o \
+ 	/tmp/server.tar.gz -L \
+	"https://github.com/Akkadius/eqemu-web-admin/archive/${SERVER_RELEASE}.tar.gz" && \
+ tar xf \
+ 	/tmp/server.tar.gz -C \
+	/app/web-admin/ --strip-components=1 && \
+ cd /app/web-admin && \
+ npm install && \
+ echo "**** install client ****" && \
+ mkdir -p /tmp/client && \
+ if [ -z ${CLIENT_RELEASE+x} ]; then \
+	CLIENT_RELEASE=$(curl -sX GET "https://api.github.com/repos/Akkadius/eqemu-web-admin-client/commits/master" \
+	| awk '/sha/{print $4;exit}' FS='[""]'); \
+ fi && \
+ curl -o \
+ 	/tmp/client.tar.gz -L \
+	"https://github.com/Akkadius/eqemu-web-admin-client/archive/${CLIENT_RELEASE}.tar.gz" && \
+ tar xf \
+ 	/tmp/client.tar.gz -C \
+	/tmp/client/ --strip-components=1 && \
+ cd /tmp/client && \
+ npm install && \
+ npm run build && \
+ mv /tmp/client/dist/* /app/web-admin/public/ && \
  echo "**** cleanup ****" && \
  rm -rf \
 	/root/.cache \
