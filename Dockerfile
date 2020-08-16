@@ -3,7 +3,6 @@ FROM lsiobase/ubuntu:bionic
 # set version label
 ARG BUILD_DATE
 ARG VERSION
-ARG SNIBOX_VERSION
 LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
 LABEL maintainer="alex-phillips"
 
@@ -25,8 +24,10 @@ ARG BUILD_PACKAGES="\
 
 # packages as variables
 ARG RUNTIME_PACKAGES="\
+	iputils-ping \
 	libjson-perl \
 	mariadb-client \
+	net-tools \
 	screen \
 	unzip \
 	wget"
@@ -55,7 +56,7 @@ RUN \
  cd /app/eqemu && \
  echo "**** install eqemu-web-admin ****" && \
  echo "**** installing nodejs ****" && \
- curl -sL https://deb.nodesource.com/setup_13.x | bash - && \
+ curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
  apt install -y nodejs && \
  echo "**** install server ****" && \
  mkdir -p /app/web-admin && \
@@ -85,6 +86,8 @@ RUN \
 	/tmp/client/ --strip-components=1 && \
  cd /tmp/client && \
  npm install && \
+ echo "**** fixing bootstrap file ****" && \
+ sed -i 's| \* \$input-line-height||g' src/assets/css/theme.min.css && \
  npm run build && \
  mv /tmp/client/dist/* /app/web-admin/public/ && \
  echo "**** cleanup ****" && \
